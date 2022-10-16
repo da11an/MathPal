@@ -16,8 +16,8 @@ def login():
             add_player(player)
             session = 1
         else:
-            print("Please choose a name with at least 3 characters, you may continue as a guest")
-            player = "Guest"
+            print("Please choose a name with at least 3 characters.")
+            player = None
     else: # player stats!!!     
         print("")
         print(f'Welcome back {player}!')
@@ -26,11 +26,11 @@ def login():
         print(f'It has been {last_seen} since you played.')
         print("")
         time.sleep(1)
-        print(f"Here's what you were working on:")
+        print(f"Here's a quick review:")
+        missed, slow = hard_problems(player, [session-3, session-2, session-1])
+        {print(f'   {fact}') for fact in set(missed).union(slow)}
         print("")
-        [print(player_log[player]['question'][i]) for i in range(len(player_log[player]['session'])) if player_log[player]['session'][i] == (session -1)]
-        print("")
-        time.sleep(1)
+        time.sleep(5)
 
     return player, session
 
@@ -116,6 +116,8 @@ def encouragement(answer = True):
 
 def start_game():
     player, session = login()
+    if not player:
+        return None, 1
     subject = let_user_pick(options = ['addition', 'subtraction', 'multiplication'])
     n_problems = int_input('How many problems do you want to try: ')
     max_value = int_input("What's the biggest number you want to try: ")
@@ -123,10 +125,15 @@ def start_game():
     score_card = []
     time_card = []
     dates = []
+    print(" --- Ready -------------")
+    time.sleep(0.5)
+    print(" --------- Set ---------")
+    time.sleep(0.5)
+    print(" --------------- Go! ---")
+    time.sleep(0.5)
     spacer = '+---------------------------------------+'
-    print(spacer)
+
     for i in range(n_problems):
-        start_time = time.time()
         if subject == "addition":
             math_fact = addition(max_value)
         elif subject == "subtraction":
@@ -135,10 +142,13 @@ def start_game():
             math_fact = multiplication(max_value)
 
         question, solution = math_fact.split(" = ")
+
+        start_time = time.time()
         answer = int_input(f'#{str(i+1).ljust(8)} {question} = ')
+        duration = time.time() - start_time
+
         identical = answer == int(solution)
 
-        duration = time.time() - start_time
         dates.append(time.time())
         questions.append(math_fact)
         time_card.append(duration)
@@ -148,6 +158,7 @@ def start_game():
             print(f'Correct! {encouragement(identical)}')
         else:
             print(f'Actually, {math_fact} {encouragement(identical)}')
+            time.sleep(5)
         print("")
 
         log_result(
@@ -163,19 +174,29 @@ def start_game():
     time.sleep(1)
     score = round(sum(score_card)/len(score_card) * 100)
     print(f'Fun Game! You got {sum(score_card)}/{len(score_card)} correct = {score}%')
-    print(f'Your average answer time was {round(sum(time_card)/len(time_card), 1)} seconds')
-    print(f'Your slowest answer time was {round(max(time_card), 1)} seconds')
-    print(f'Your fastest answer time was {round(min(time_card), 1)} seconds')
-    print(spacer)
+    print(f'Your average answer time was {round(statistics.mean(time_card))} seconds')
     time.sleep(1)
     print("Facts to review:")
-    missed = [questions[i] for i in range(len(questions)) if not score_card[i]]
-    slow = [questions[i] for i in range(len(questions)) if len(time_card) > 1 and time_card[i] > 2*statistics.stdev(time_card)]
-    {print(fact) for fact in set(missed).union(slow)}
+    missed, slow = hard_problems(player, session)
+    {print(f'   {fact}') for fact in set(missed).union(slow)}
+    print(spacer)
     print("")
 
     return(score)
 
+def hard_problems(player, session):
+    if type(session) != list:
+        session = [session]
+    
+    player_log = read_log()
+    session_list = player_log[player]['session']
+    window_ind = [i for i in range(len(session_list)) if session_list[i] in session]
+    durations = [player_log[player]['duration'][i] for i in window_ind]
+    questions = [player_log[player]['question'][i] for i in window_ind]
+    corrects = [player_log[player]['correct'][i] for i in window_ind]
+    missed = [questions[i] for i in range(len(questions)) if not corrects[i]]
+    slow = [questions[i] for i in range(len(questions)) if (len(questions) > 1 and durations[i] > (statistics.mean(durations) + 1*statistics.stdev(durations)))]
+    return missed, slow
 
 def multiplication(biggest_number = 12):
     a = random.randint(1, biggest_number)
@@ -193,6 +214,9 @@ def subtraction(biggest_number = 12):
     if b > a:
         a, b = b, a
     return f'{a} - {b} = {a-b}'
+
+def review():
+    pass
 
 def int_input(prompt = ""):
     inp = input(prompt)
