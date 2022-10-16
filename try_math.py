@@ -1,6 +1,7 @@
 import random
 import time
 import json
+import statistics
 
 
 def login():
@@ -125,31 +126,33 @@ def start_game():
     spacer = '+---------------------------------------+'
     print(spacer)
     for i in range(n_problems):
-        print(f'({i+1})')        
-        
         start_time = time.time()
         if subject == "addition":
-            identical, help_str = addition(max_value)
+            math_fact = addition(max_value)
         elif subject == "subtraction":
-            identical, help_str = subtraction(max_value)
+            math_fact = subtraction(max_value)
         else:
-            identical, help_str = multiplication(max_value)
-        
+            math_fact = multiplication(max_value)
+
+        question, solution = math_fact.split(" = ")
+        answer = int_input(f'#{str(i+1).ljust(8)} {question} = ')
+        identical = answer == int(solution)
+
         duration = time.time() - start_time
         dates.append(time.time())
-        questions.append(help_str)
+        questions.append(math_fact)
         time_card.append(duration)
         score_card.append(identical)
 
         if identical:
             print(f'Correct! {encouragement(identical)}')
         else:
-            print(f'Actually, {help_str} {encouragement(identical)}')
+            print(f'Actually, {math_fact} {encouragement(identical)}')
         print("")
 
         log_result(
             player = player,
-            question = help_str,
+            question = math_fact,
             correct = identical,
             timestamp = time.time(),
             duration = duration,
@@ -164,35 +167,35 @@ def start_game():
     print(f'Your slowest answer time was {round(max(time_card), 1)} seconds')
     print(f'Your fastest answer time was {round(min(time_card), 1)} seconds')
     print(spacer)
+    time.sleep(1)
+    print("Facts to review:")
+    missed = [questions[i] for i in range(len(questions)) if not score_card[i]]
+    slow = [questions[i] for i in range(len(questions)) if len(time_card) > 1 and time_card[i] > 2*statistics.stdev(time_card)]
+    {print(fact) for fact in set(missed).union(slow)}
     print("")
+
     return(score)
 
 
 def multiplication(biggest_number = 12):
     a = random.randint(1, biggest_number)
     b = random.randint(1, biggest_number)
-    answer = int_input(f'          {a} * {b} = ')
-    identical = answer == (a*b)
-    return identical, f'{a} * {b} = {a*b}'
+    return f'{a} * {b} = {a*b}'
 
 def addition(biggest_number = 12):
     a = random.randint(1, biggest_number)
     b = random.randint(1, biggest_number)
-    answer = int_input(f'          {a} + {b} = ')
-    identical = answer == (a+b)
-    return identical, f'{a} + {b} = {a+b}'
+    return f'{a} + {b} = {a+b}'
 
 def subtraction(biggest_number = 12):
     a = random.randint(1, biggest_number)
     b = random.randint(1, biggest_number)
     if b > a:
         a, b = b, a
-    answer = int_input(f'          {a} - {b} = ')
-    identical = answer == (a-b)
-    return identical, f'{a} - {b} = {a-b}'
+    return f'{a} - {b} = {a-b}'
 
 def int_input(prompt = ""):
-    inp = input(prompt)       # Get the input
+    inp = input(prompt)
     while not inp.isdigit():
         print("Wups! Please try a whole number.")
         inp = input(prompt)
