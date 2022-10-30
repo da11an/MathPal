@@ -5,35 +5,47 @@ import statistics
 import os
 
 
+DATA_PATH = os.path.join('MathPal', 'data.json')
+
 def login():
+    clear_screen()
+    print("WELCOME to MATH GAMES! I'm Math Pal.\n\nWho are you?\n")
+    
     player_log = read_log()
     player_list = list(player_log.keys())
     if type(player_list) != list:
         player_list = [player_list]
 
-    clear_screen()
-    print("WELCOME to MATH GAMES! Who are you?\n")
     player = let_user_pick(options = ["Add me, I'm new"] + player_list)
 
     clear_screen()
     if player == "Add me, I'm new":
-        player = input("What's your name: ")
-        if len(player) > 2:
-            add_player(player)
-            session = 1
-        else:
-            print("Please choose a name with at least 3 characters.")
-            player = None
+        player = add_player_dialog()
+        session = 1
     else: # player stats!!!     
         print("")
         print(f'Welcome back {player}!')
-        session = player_log[player]['session'][-1] + 1
-        last_seen = duration_str(time.time() - player_log[player]['timestamp'][-1])
+        if player_log[player]['session']:
+            session = player_log[player]['session'][-1] + 1
+            last_seen = duration_str(time.time() - player_log[player]['timestamp'][-1])
+        else:
+            session = 1
+            last_seen = "forever"
         print(f'It has been {last_seen} since you played.')
         print("")
         time.sleep(1)
 
     return player, session
+
+def add_player_dialog():
+    player = input("What's your name: ")
+    if len(player) > 2:
+        add_player(player)
+        session = 1
+    else:
+        print("Please choose a name with at least 3 characters.")
+        player = add_player_dialog()
+    return player
 
 def duration_str(duration):
     duration = round(duration)
@@ -55,14 +67,21 @@ def duration_str(duration):
         return f'{int(days)} days and {int(hours)} hours'
 
 # read JSON log
-def read_log(filename='data.json'):
+def read_log(filename=DATA_PATH):
+    if not os.path.exists(DATA_PATH):
+        fp = open(DATA_PATH, 'w')
+        fp.write('{}')
+        fp.close()
+        #add_player_dialog()
     with open(filename,'r+') as file:
         return json.load(file)
     
-def add_player(player, filename='data.json'):
+def add_player(player, filename=DATA_PATH):
     print(f'Player {player} is being added')
     with open(filename,'r+') as file:
         file_data = json.load(file)
+        if not file_data:
+            file_data = {}
         file_data[player] = {
             "question": [],
             "correct": [],
@@ -74,7 +93,7 @@ def add_player(player, filename='data.json'):
         json.dump(file_data, file, indent = 4)
 
 # function to add to JSON
-def log_result(player, question, correct, timestamp, duration, session, filename='data.json'):
+def log_result(player, question, correct, timestamp, duration, session, filename=DATA_PATH):
     with open(filename,'r+') as file:
         # First we load existing data into a dict.
         file_data = json.load(file)
@@ -178,7 +197,7 @@ def start_game():
         review_questions = list(set(missed).union(slow))
 
     for i in range(n_problems):
-        if review == "Yes" and random.randint(0, 1):
+        if review == "Yes" and review_questions and random.randint(0, 1):
             math_fact = random.choice(review_questions)
         elif subject == "+":
             math_fact = addition(max_value)
@@ -284,6 +303,7 @@ def compile_stats(player, subject = "*", session = []):
     if type(session) != list:
         session = [session]
     dat = read_log()
+    #import pdb; pdb.set_trace()
     dat_player = dat[player]
     session_mask = [s in session for s in dat_player['session']]
     if session:
@@ -374,5 +394,8 @@ def let_user_pick(options):
         pass
     return None
 
-if __name__ == "__main__":
+def main():
     start_game()
+
+if __name__ == "__main__":
+    main()
