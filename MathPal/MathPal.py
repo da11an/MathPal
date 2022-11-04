@@ -6,7 +6,7 @@ import os
 
 from .ui_cmd.login import login
 from .data import read_log, log_result, hard_problems, compile_stats
-from .new_question import addition, subtraction, multiplication 
+from .new_question import addition, subtraction, multiplication, teach_homerow
 from .ui_cmd.utils import let_user_pick, int_input, clear_screen, ready_set_go, encouragement
 
 DATA_PATH = os.path.join('MathPal', 'data.json')
@@ -19,7 +19,7 @@ def main():
     make_report = let_user_pick(options = ['Play new game!', 'See report'])
     if make_report == 'See report':
         print("One what subject?")
-        subject = let_user_pick(options = ['+', '-', '*'])
+        subject = let_user_pick(options = ['+', '-', '*', 'typing: homerow'])
         recents = int_input("  How many of your latest sessions would you like to compare to your overall average?: ")
         compile_stats(player, subject, [*range(session-1, session-(1+recents), -1)], DATA_PATH)
         return ""
@@ -34,7 +34,7 @@ def main():
     review = let_user_pick(options = ['Yes', 'No'])
     print("")
     print("What would you like to work on?")
-    subject = let_user_pick(options = ['+', '-', '*'])
+    subject = let_user_pick(options = ['+', '-', '*', 'typing: homerow'])
     n_problems = int_input('How many problems do you want to try: ')
     max_value = min(int_input("What's the biggest number you want to try: "), 99999)
     questions = []
@@ -47,23 +47,33 @@ def main():
         review_questions = list(set(missed).union(slow))
 
     for i in range(n_problems):
+        hint = ''
         if review == "Yes" and review_questions and random.randint(0, 1):
             math_fact = random.choice(review_questions)
         elif subject == "+":
             math_fact = addition(max_value)
         elif subject == "-":
             math_fact = subtraction(max_value)
-        else:
+        elif subject == "*":
             math_fact = multiplication(max_value)
+        elif subject == "typing: homerow":
+            math_fact, hint = teach_homerow(max_value)
 
         question, solution = math_fact.split(" = ")
-
         clear_screen()
         start_time = time.time()
-        answer = int_input(f'#{str(i+1).ljust(8)} {question} = ')
+        if solution.isdigit():
+            answer = int_input(f'#{str(i+1).ljust(8)} {question} = ')
+        else:
+            if hint:
+                print(f'Hint:\n\n{hint}\n')
+            answer = input(f'#{str(i+1).ljust(8)} {question}\n {"".ljust(8)} ')
         duration = time.time() - start_time
 
-        identical = answer == int(solution)
+        if solution.isdigit():
+            identical = answer == int(solution)
+        else:
+            identical = answer == solution
 
         dates.append(time.time())
         questions.append(math_fact)
