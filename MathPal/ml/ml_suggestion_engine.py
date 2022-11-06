@@ -12,73 +12,56 @@
 
 # could give action option of providing a review problem including ans
 
-# https://towardsdatascience.com/reinforcement-learning-rl-101-with-python-e1aa0d37d43b
+from sklearn import linear_model
+import pandas as pd
 
-import numpy as np
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-import seaborn as sns
-sns.set_style("darkgrid")
-import random
+from MathPal.data import read_log
+from MathPal.new_question import multiplication, addition, subtraction
 
-# Temporal-difference - TD(0) or one-step
-# parameters
-gamma = 0.5 # discounting rate
-rewardSize = -1
-gridSize = 4
-alpha = 0.5 # (0,1] // stepSize
-terminationStates = [[0,0], [gridSize-1, gridSize-1]]
-actions = [[-1, 0], [1, 0], [0, 1], [0, -1]]
-numIterations = 10000
-# initialization
-V = np.zeros((gridSize, gridSize))
-returns = {(i, j):list() for i in range(gridSize) for j in range(gridSize)}
-deltas = {(i, j):list() for i in range(gridSize) for j in range(gridSize)}
-states = [[i, j] for i in range(gridSize) for j in range(gridSize)]
-# utils
-def generateInitialState():
-    initState = random.choice(states[1:-1])
-    return initState
 
-def generateNextAction():
-    return random.choice(actions)
+def evaluate_question(player, question = "1 + 1 = 2", session = 1, filename = 'data.json'):
+    """
+    Returns probability to correct answer and expected time to completion
+    """
+    if type(question) is not list:
+        question = [question]
+    assert type(session) == int
+    session = [session for i in question]
+    X_new = pd.DataFrame(list(zip(question, session)), columns = ['question', 'session'])
+    X_new[['x1', 'op', 'x2', 'eq', 'ans']] = X_new['question'].str.split(' ', expand=True)
+    op_new = X_new['op'].tolist()[0]
 
-def takeAction(state, action):
-    if list(state) in terminationStates:
-        return 0, None
-    finalState = np.array(state)+np.array(action)
-    # if robot crosses wall
-    if -1 in list(finalState) or gridSize in list(finalState):
-        finalState = state
-    return rewardSize, list(finalState)
+    df = pd.DataFrame(read_log(filename)[player]) 
+    df[['x1', 'op', 'x2', 'eq', 'ans']] = df['question'].str.split(' ', expand=True)
+    df = df[df['op'] == op_new]
+    if len(df) == 0:
+        #return 2/(X_new[['x1']] + X_new[['x2']]), 10
+        return 0.5, 10
 
-for it in tqdm(range(numIterations)):
-    state = generateInitialState()
-    while True:
-        action = generateNextAction()
-        reward, finalState = takeAction(state, action)
+    reg = linear_model.LinearRegression()
+    Y = df[['correct', 'duration']]
+    X = df[['session', 'x1', 'x2']]
+    reg.fit(X, Y)
+    pred = reg.predict(X_new[['session', 'x1', 'x2']])
+    return pred[:,0].tolist(), pred[:,1].tolist()
+
+def pick_question(n_problems, biggest_number = 12, question_gen = multiplication, question_eval = evaluate_question, diff = 'easy', player = 'Dallan', session = 1, filename = 'data.json'):
+    if diff == 'easy':
+        target = 1.5 + 1
+    elif diff == 'moderate':
+        target = 1 + 0.9
+    elif diff == 'hard':
+        target = 0.7 + 0.7
+    bank = []
+    biggest_number = max(biggest_number, 1000)
+    for a in range(1, biggest_number):
+        for b in range(1, biggest_number):
+            bank.append(question_gen(a, b))
+
+    bank = list(set(bank))
+    prob, dur = question_eval(player, bank, session, filename)
+    dur = [max(i, 0.1) for i in dur]
+    prob_target = [abs(prob[i] + (1 - dur[i]/20) - target) for i in range(len(prob))]
+    bank_sorted = pd.DataFrame(list(zip(bank, prob_target, prob, dur)), columns = ['bank', 'target', 'prob', 'dur']).sort_values(by='target')
+    return bank_sorted[0:n_problems]
         
-        # we reached the end
-        if finalState is None:
-            break
-        
-        # modify Value function
-        before =  V[state[0], state[1]]
-        V[state[0], state[1]] += alpha*(reward + gamma*V[finalState[0], finalState[1]] - V[state[0], state[1]])
-        deltas[state[0], state[1]].append(float(np.abs(before-V[state[0], state[1]])))
-        
-        state = finalState
-
-# using gamma = 0.1 // alpha = 0.1 (convergence)
-plt.figure(figsize=(20,10))
-all_series = [list(x)[:50] for x in deltas.values()]
-for ix, series in enumerate(all_series):
-    plt.plot(series)
-    plt.savefig(f'gamma01_alpha01_{ix}.png')
-
-# using gamma = 0.5 // alpha = 0.5 (no convergence)
-plt.figure(figsize=(20,10))
-all_series = [list(x)[:50] for x in deltas.values()]
-for ix, series in enumerate(all_series):
-    plt.plot(series)
-    plt.savefig(f'gamma05_alpha05_{ix}.png')

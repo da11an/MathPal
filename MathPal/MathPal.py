@@ -6,8 +6,9 @@ import os
 
 from .ui_cmd.login import login
 from .data import read_log, log_result, hard_problems, compile_stats
-from .new_question import addition, subtraction, multiplication 
+from .new_question import addition, subtraction, multiplication, random_pair
 from .ui_cmd.utils import let_user_pick, int_input, clear_screen, ready_set_go, encouragement
+from .ml.ml_suggestion_engine import pick_question, evaluate_question
 
 DATA_PATH = os.path.join('MathPal', 'data.json')
 
@@ -37,6 +38,8 @@ def main():
     subject = let_user_pick(options = ['+', '-', '*'])
     n_problems = int_input('How many problems do you want to try: ')
     max_value = min(int_input("What's the biggest number you want to try: "), 99999)
+    print("How do you want me to pick your problems:")
+    question_type = let_user_pick(options = ['random', 'easy', 'moderate', 'hard'])
     questions = []
     score_card = []
     time_card = []
@@ -45,17 +48,33 @@ def main():
     if review == "Yes":
         missed, slow = hard_problems(player, [session-3, session-2, session-1], DATA_PATH)
         review_questions = list(set(missed).union(slow))
+    question_map = {'+':addition, '-':subtraction, '*':multiplication}
+    if question_type == "random":
+        bank = []
+        for i in range(n_problems):
+            a, b = random_pair(max_value)
+            if review == "Yes" and review_questions and random.randint(0, 1):
+                bank.append(random.choice(review_questions))
+            elif subject == "+":
+                bank.append(addition(a, b))
+            elif subject == "-":
+                bank.append(subtraction(a, b))
+            else:
+                bank.append(multiplication(a, b))
+    else:
+        bank = pick_question(
+            n_problems, 
+            max_value, 
+            question_gen = multiplication, 
+            question_eval = evaluate_question, 
+            diff = question_type, 
+            player = player, 
+            session = session, 
+            filename = DATA_PATH)['bank'].tolist()
+        print(bank)
 
     for i in range(n_problems):
-        if review == "Yes" and review_questions and random.randint(0, 1):
-            math_fact = random.choice(review_questions)
-        elif subject == "+":
-            math_fact = addition(max_value)
-        elif subject == "-":
-            math_fact = subtraction(max_value)
-        else:
-            math_fact = multiplication(max_value)
-
+        math_fact = bank[i]
         question, solution = math_fact.split(" = ")
 
         clear_screen()
