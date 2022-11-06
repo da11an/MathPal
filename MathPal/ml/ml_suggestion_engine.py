@@ -53,7 +53,7 @@ def pick_question(n_problems, biggest_number = 12, question_gen = multiplication
     elif diff == 'hard':
         target = 0.7 + 0.7
     bank = []
-    biggest_number = max(biggest_number, 1000)
+    biggest_number = min(biggest_number, 1000)
     for a in range(1, biggest_number):
         for b in range(1, biggest_number):
             bank.append(question_gen(a, b))
