@@ -1,18 +1,17 @@
 import random
 
-def multiplication(biggest_number = 12):
+def random_pair(biggest_number = 12):
     a = random.randint(1, biggest_number)
     b = random.randint(1, biggest_number)
+    return a, b
+
+def multiplication(a, b):
     return f'{a} * {b} = {a*b}'
 
-def addition(biggest_number = 12):
-    a = random.randint(1, biggest_number)
-    b = random.randint(1, biggest_number)
+def addition(a, b):
     return f'{a} + {b} = {a+b}'
 
-def subtraction(biggest_number = 12):
-    a = random.randint(1, biggest_number)
-    b = random.randint(1, biggest_number)
+def subtraction(a, b):
     if b > a:
         a, b = b, a
     return f'{a} - {b} = {a-b}'
