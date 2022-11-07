@@ -16,8 +16,8 @@ def main():
     player, session = login(DATA_PATH)
     if not player:
         return None, 1
-    print("What would you like to do?")
-    make_report = let_user_pick(options = ['Play new game!', 'See report'])
+    #print("What would you like to do?")
+    make_report = 'Play new game!' #let_user_pick(options = ['Play new game!', 'See report'])
     if make_report == 'See report':
         print("One what subject?")
         subject = let_user_pick(options = ['+', '-', '*'])
@@ -25,21 +25,24 @@ def main():
         compile_stats(player, subject, [*range(session-1, session-(1+recents), -1)], DATA_PATH)
         return ""
     print("")
-    print(f"Here's a review of facts your learning:")
+    print(f"Here's a review of facts you're learning:")
     missed, slow = hard_problems(player, [session-3, session-2, session-1], DATA_PATH)
     for fact in set(missed).union(slow):
         print(f'   {fact}')
         time.sleep(0.5)
     print("")
-    print("Would you like to mix in review questions?")
-    review = let_user_pick(options = ['Yes', 'No'])
+    #print("Would you like to mix in review questions?")
+    review = 'Yes' #let_user_pick(options = ['Yes', 'No'])
     print("")
     print("What would you like to work on?")
     subject = let_user_pick(options = ['+', '-', '*'])
-    n_problems = int_input('How many problems do you want to try: ')
-    max_value = min(int_input("What's the biggest number you want to try: "), 99999)
-    print("How do you want me to pick your problems:")
-    question_type = let_user_pick(options = ['random', 'easy', 'moderate', 'hard'])
+    n_problems = 5 #int_input('How many problems do you want to try: ')
+    print("\nHow do you want me to pick your problems:")
+    question_type = let_user_pick(options = ['random', 'by difficulty'])
+    if question_type == 'random':
+        max_value = min(int_input("\nWhat's the biggest number you want to try: "), 99999)
+    else:
+        difficulty = int_input("\nHow much of a challenge would you like on a scale of 1-10 (1=easy, 10=hard): ")
     questions = []
     score_card = []
     time_card = []
@@ -50,6 +53,7 @@ def main():
         review_questions = list(set(missed).union(slow))
     question_map = {'+':addition, '-':subtraction, '*':multiplication}
     if question_type == "random":
+        bank_df = None
         bank = []
         for i in range(n_problems):
             a, b = random_pair(max_value)
@@ -62,16 +66,15 @@ def main():
             else:
                 bank.append(multiplication(a, b))
     else:
-        bank = pick_question(
-            n_problems, 
-            max_value, 
-            question_gen = multiplication, 
-            question_eval = evaluate_question, 
-            diff = question_type, 
-            player = player, 
-            session = session, 
-            filename = DATA_PATH)['bank'].tolist()
-        print(bank)
+        bank_df = pick_question(
+            n_problems,
+            question_gen = question_map[subject],
+            question_eval = evaluate_question,
+            diff = difficulty,
+            player = player,
+            session = session,
+            filename = DATA_PATH)
+        bank = bank_df['bank'].tolist()
 
     for i in range(n_problems):
         math_fact = bank[i]
@@ -113,14 +116,23 @@ def main():
     score = round(sum(score_card)/len(score_card) * 100)
     print(f'Good Game! You got {sum(score_card)}/{len(score_card)} correct = {score}%')
     print(f'Your average answer time was {round(statistics.mean(time_card))} seconds')
+    print('\nExpected vs Actual Performance:')
+    # next line is hard coded, should make into functions in ml_suggestion_engine, and import to ensure consistency
+    score_actual = [abs(score_card[i] + (1 - time_card[i]/20) - (2.3 - difficulty/10)) for i in range(len(score_card))] # is there a problem with this?
+    bank_df['actual'] = score_actual
+    bank_df['duration_actual'] = time_card
+    bank_df['correct_actual'] = score_card
+    print(bank_df[['bank', 'prob', 'dur', 'correct_actual', 'duration_actual']])
+    print('\nSession Total Expected vs Actual Performance:')
+    print(bank_df[['prob', 'dur', 'correct_actual', 'duration_actual']].sum().round(2))
     time.sleep(1)
-    print("Facts to review:")
+    print("\nFacts to review:")
     missed, slow = hard_problems(player, session, DATA_PATH)
     for fact in set(missed).union(slow):
         print(f'   {fact}')
         time.sleep(2)
     print("")
-    compile_stats(player, subject, session, DATA_PATH)
+    #compile_stats(player, subject, session, DATA_PATH)
     return(score)
 
 
