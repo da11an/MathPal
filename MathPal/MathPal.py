@@ -37,12 +37,15 @@ def main():
     print("What would you like to work on?")
     subject = let_user_pick(options = ['+', '-', '*'])
     n_problems = 5 #int_input('How many problems do you want to try: ')
-    print("\nHow do you want me to pick your problems:")
-    question_type = let_user_pick(options = ['random', 'by difficulty'])
+    difficulty = int_input("\nWhat kind of problems? 0=random. [1-10 easy-hard]: ")
+    if difficulty == 0:
+        question_type = 'random'
+    else:
+        question_type = 'by difficulty'
+    #print("\nHow do you want me to pick your problems:")
+    #question_type = let_user_pick(options = ['random', 'by difficulty'])
     if question_type == 'random':
         max_value = min(int_input("\nWhat's the biggest number you want to try: "), 99999)
-    else:
-        difficulty = int_input("\nHow much of a challenge would you like on a scale of 1-10 (1=easy, 10=hard): ")
     questions = []
     score_card = []
     time_card = []
