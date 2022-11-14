@@ -1,7 +1,7 @@
 
 import time
-from .utils import clear_screen, let_user_pick, let_user_pick, duration_str
-from ..data import read_log, add_player
+from ui_cmd.utils import clear_screen, let_user_pick, let_user_pick, duration_str
+from data import read_log, add_player
 
 
 def login(filename):

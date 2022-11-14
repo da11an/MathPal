@@ -15,8 +15,8 @@
 from sklearn import linear_model
 import pandas as pd
 
-from MathPal.data import read_log
-from MathPal.new_question import multiplication, addition, subtraction
+from data import read_log
+from new_question import multiplication, addition, subtraction
 
 # https://stackoverflow.com/questions/29055669/how-to-count-carries-in-multiplication
 def count_addition_carries_rec(nums, answer=0, carries=0):
@@ -108,18 +108,23 @@ def mutate_carries(X, op):
         X['carries'] = X.apply(lambda x: count_multiplication_carries_rec(x['x2'], x['ans'])[1], axis=1)
     return X
 
-def XY_data(filename, player, op = '*'):
+def XY_data(filename, player = 'Dallan', op = '*', pool = True):
     '''
     Prepare data (and feature engineer, move to another function later)
     '''
-    df = pd.DataFrame(read_log(filename)[player])
+    data = read_log(filename)
+    if pool:
+        df = pd.concat([pd.DataFrame(data[x]).assign(player=x) for x in data])
+    else:
+        df = pd.concat([pd.DataFrame(data[x]).assign(player=x) for x in data if x == player])
+    df = pd.concat([df, pd.get_dummies(df['player'])], axis=1)
     try:
         df[['x1', 'op', 'x2', 'eq', 'ans']] = df['question'].str.split(' ', expand=True)
         df = df[df['op'] == op]
     except:
         return None
     Y = df[['correct', 'duration']]
-    X = df[['session', 'x1', 'x2', 'ans']]
+    X = df.drop(['question', 'correct', 'timestamp', 'duration', 'player'], axis = 1)
     X = mutate_carries(X, op)
     return X, Y
 
@@ -136,17 +141,22 @@ def evaluate_question(player, question = "1 + 1 = 2", session = 1, filename = 'd
     op_new = X_new['op'].tolist()[0]
     X_new = mutate_carries(X_new, op_new)
 
-    X, Y = XY_data(filename, player, op = op_new)
+    X, Y = XY_data(filename, player = player, op = op_new)
+    X = X.drop(['op', 'eq'], axis=1)
     if len(X) == 0:
+        # this part isn't working, need to give attention, currently just run random first time
         print('Keep playing to get questions that are just right.')
         flat = [1 for i in range(X_new['question'].count())]
         return flat, flat
 
+    X_new = X_new.reindex(columns = X.columns.tolist()).fillna(0)
+    X_new[player] = 1
     # reg = linear_model.LinearRegression() # this does okay
     # reg = linear_model.Ridge(alpha=0.5)   # this seems to do worse than linear
     reg = linear_model.MultiTaskElasticNet(alpha=1, l1_ratio = 0.5) # this seems better than ridge and linear
-    reg.fit(X, Y)
-    pred = reg.predict(X_new.loc[:, X.keys()])
+    reg.fit(X.drop('ans', axis=1), Y)
+    # pred = reg.predict(X_new.loc[:, X.keys()])
+    pred = reg.predict(X_new.drop('ans', axis=1))
     return pred[:,0].tolist(), pred[:,1].tolist()
 
 def pick_question(n_problems, question_gen = multiplication, question_eval = evaluate_question, diff = 5, player = 'Dallan', session = 1, filename = 'data.json'):
