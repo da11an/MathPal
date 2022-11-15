@@ -4,11 +4,11 @@ import json
 import statistics
 import os
 
-from .ui_cmd.login import login
-from .data import read_log, log_result, hard_problems, compile_stats
-from .new_question import addition, subtraction, multiplication, random_pair
-from .ui_cmd.utils import let_user_pick, int_input, clear_screen, ready_set_go, encouragement
-from .ml.ml_suggestion_engine import pick_question, evaluate_question
+from ui_cmd.login import login
+from data import read_log, log_result, hard_problems, compile_stats
+from new_question import addition, subtraction, multiplication, random_pair
+from ui_cmd.utils import let_user_pick, int_input, clear_screen, ready_set_go, encouragement
+from ml.ml_suggestion_engine import pick_question, evaluate_question
 
 DATA_PATH = os.path.join('MathPal', 'data.json')
 
@@ -36,16 +36,19 @@ def main():
     print("")
     print("What would you like to work on?")
     subject = let_user_pick(options = ['+', '-', '*'])
-    n_problems = 5 #int_input('How many problems do you want to try: ')
     difficulty = int_input("\nWhat kind of problems? 0=random. [1-10 easy-hard]: ")
-    if difficulty == 0:
+    if difficulty == 0 or session == 1:
         question_type = 'random'
     else:
         question_type = 'by difficulty'
     #print("\nHow do you want me to pick your problems:")
     #question_type = let_user_pick(options = ['random', 'by difficulty'])
+    max_value = None
     if question_type == 'random':
         max_value = min(int_input("\nWhat's the biggest number you want to try: "), 99999)
+    quiz(player, session, review, subject, question_type, max_value, 5, difficulty)
+    
+def quiz(player, session, review, subject, question_type, max_value, n_problems = 5, difficulty = 5):
     questions = []
     score_card = []
     time_card = []
@@ -119,24 +122,32 @@ def main():
     score = round(sum(score_card)/len(score_card) * 100)
     print(f'Good Game! You got {sum(score_card)}/{len(score_card)} correct = {score}%')
     print(f'Your average answer time was {round(statistics.mean(time_card))} seconds')
-    print('\nExpected vs Actual Performance:')
-    # next line is hard coded, should make into functions in ml_suggestion_engine, and import to ensure consistency
-    score_actual = [abs(score_card[i] + (1 - time_card[i]/20) - (2.3 - difficulty/10)) for i in range(len(score_card))] # is there a problem with this?
-    bank_df['actual'] = score_actual
-    bank_df['duration_actual'] = time_card
-    bank_df['correct_actual'] = score_card
-    print(bank_df[['bank', 'prob', 'dur', 'correct_actual', 'duration_actual']])
-    print('\nSession Total Expected vs Actual Performance:')
-    print(bank_df[['prob', 'dur', 'correct_actual', 'duration_actual']].sum().round(2))
-    time.sleep(1)
-    print("\nFacts to review:")
-    missed, slow = hard_problems(player, session, DATA_PATH)
-    for fact in set(missed).union(slow):
-        print(f'   {fact}')
-        time.sleep(2)
-    print("")
-    #compile_stats(player, subject, session, DATA_PATH)
-    return(score)
+    if question_type == "by difficulty":
+        print('\nExpected vs Actual Performance:')
+        # next line is hard coded, should make into functions in ml_suggestion_engine, and import to ensure consistency
+        score_actual = [abs(score_card[i] + (1 - time_card[i]/20) - (2.3 - difficulty/10)) for i in range(len(score_card))] # is there a problem with this?
+        bank_df['actual'] = score_actual
+        bank_df['duration_actual'] = time_card
+        bank_df['correct_actual'] = score_card
+        print(bank_df[['bank', 'prob', 'dur', 'correct_actual', 'duration_actual']])
+        print('\nSession Total Expected vs Actual Performance:')
+        print(bank_df[['prob', 'dur', 'correct_actual', 'duration_actual']].sum().round(2))
+        time.sleep(1)
+        print("\nFacts to review:")
+        missed, slow = hard_problems(player, session, DATA_PATH)
+        for fact in set(missed).union(slow):
+            print(f'   {fact}')
+            time.sleep(2)
+        print("")
+    else:
+        compile_stats(player, subject, session, DATA_PATH)
+    print("\nPlay again?")
+    if let_user_pick(options = ['Yes', 'No']) == 'Yes':
+        if question_type == "by difficulty":
+            difficulty = int_input("\nWhat kind of problems? 0=random. [1-10 easy-hard]: ")
+        else:
+            max_value = min(int_input("\nWhat's the biggest number you want to try: "), 99999)
+        quiz(player, session, review, subject, question_type, max_value, 5, difficulty)
 
 
 if __name__ == "__main__":
